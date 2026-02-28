@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1200" role="img" aria-labelledby="tp2 dp2">
+  <title id="tp2">Placeholder vertical 2</title>
+  <desc id="dp2">Image verticale de remplacement.</desc>
+  <defs>
+    <linearGradient id="gp2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e7ece5"/>
+      <stop offset="60%" stop-color="#bdc9b8"/>
+      <stop offset="100%" stop-color="#82937b"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="1200" fill="url(#gp2)"/>
+  <rect x="70" y="70" width="760" height="1060" fill="none" stroke="#2b3229" stroke-width="2" opacity="0.65"/>
+  <line x1="70" y1="170" x2="830" y2="170" stroke="#2b3229" stroke-width="2" opacity="0.5"/>
+  <line x1="70" y1="1020" x2="830" y2="1020" stroke="#2b3229" stroke-width="2" opacity="0.5"/>
+  <text x="110" y="145" fill="#1f251f" font-family="Arial, Helvetica, sans-serif" font-size="28" letter-spacing="2">ARCHIVE FRAME 2</text>
+  <text x="110" y="1120" fill="#1f251f" font-family="Arial, Helvetica, sans-serif" font-size="20" opacity="0.75">TO BE REPLACED</text>
+</svg>

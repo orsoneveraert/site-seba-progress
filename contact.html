@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sebastien Lacomblez — Contact</title>
+    <meta name="description" content="Entree projet: formulaire qualifiant pour missions paysageres." />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container site-grid header-grid gap-tight">
+        <a class="brand span-1" href="index.html" aria-label="Retour a l'accueil">SL</a>
+        <a class="nav-link span-1 optional" data-page-link href="studio.html">Le studio</a>
+        <a class="nav-link span-1 optional" data-page-link href="services.html">Services</a>
+        <a class="nav-link span-1 optional" data-page-link href="projets.html">Projets</a>
+        <a class="nav-link span-1 optional" data-page-link href="contact.html">Contact</a>
+        <button class="menu-button span-1" type="button" data-menu-open aria-label="Ouvrir le menu">Menu</button>
+      </div>
+    </header>
+
+    <div class="menu-panel" data-menu data-open="false" aria-hidden="true">
+      <div class="menu-head">
+        <span class="eyebrow">Navigation generale</span>
+        <button class="close-button" type="button" data-menu-close aria-label="Fermer le menu">×</button>
+      </div>
+      <nav class="menu-links">
+        <a data-page-link href="index.html">P01 / Home — Manifeste</a>
+        <a data-page-link href="studio.html">P02 / Le Studio</a>
+        <a data-page-link href="piliers.html">P03 / Les 3 Piliers</a>
+        <a data-page-link href="services.html">P04 / Services</a>
+        <a data-page-link href="vision-masterplan.html">P05 / Vision &amp; Masterplan</a>
+        <a data-page-link href="signature-vegetale.html">P06 / Signature Vegetale</a>
+        <a data-page-link href="conseil-strategie.html">P07 / Conseil &amp; Strategie</a>
+        <a data-page-link href="methode.html">P08 / Methode</a>
+        <a data-page-link href="projets.html">P09 / Projets</a>
+        <a data-page-link href="laboratoire.html">P10 / Laboratoire du Vivant</a>
+        <a data-page-link href="transmission.html">P11 / Transmission</a>
+        <a data-page-link href="partenaires.html">P12 / Partenaires &amp; Synergies</a>
+        <a data-page-link href="contact.html">P13 / Contact</a>
+      </nav>
+    </div>
+
+    <main class="page">
+      <section class="section">
+        <div class="container stack-xl contact-layout">
+          <div class="site-grid hero-metric fadein">
+            <div class="span-2 page-label">P13 / Contact — Entree projet</div>
+            <div class="span-2 meta">Formulaire premium minimal</div>
+            <div class="span-2 meta">Confirmation non intrusive</div>
+          </div>
+
+          <div class="site-grid fadein">
+            <h1 class="span-4 hero-title">Entrer en projet</h1>
+            <div class="span-2 stack-md">
+              <p class="kicker">
+                Merci de partager les grandes lignes de votre site, vos enjeux et votre horizon
+                temporel. Retour sous 5 jours ouvres.
+              </p>
+            </div>
+          </div>
+
+          <div class="site-grid fadein">
+            <div class="span-6 contact-form contact-form-premium">
+              <form class="contact-intake" action="#" method="post" enctype="multipart/form-data">
+                <div class="form-grid form-grid-premium">
+                  <div class="field">
+                    <label for="contact-name">Nom</label>
+                    <input id="contact-name" type="text" name="name" placeholder="Votre nom" />
+                  </div>
+
+                  <div class="field">
+                    <label for="contact-email">Email</label>
+                    <input id="contact-email" type="email" name="email" placeholder="votre@email.com" />
+                  </div>
+
+                  <div class="field field-select">
+                    <div class="field-label-row">
+                      <label for="contact-project-type">Type de projet</label>
+                      <span class="field-help-wrap">
+                        <button class="field-help-trigger" type="button" aria-label="Aide Type de projet">?</button>
+                        <span class="field-help-pop" role="tooltip">
+                          Choisissez la mission la plus proche de votre besoin actuel.
+                        </span>
+                      </span>
+                    </div>
+                    <div class="select-wrap">
+                      <select id="contact-project-type" name="project-type">
+                        <option>Vision &amp; Masterplan</option>
+                        <option>Signature vegetale</option>
+                        <option>Conseil &amp; Strategie</option>
+                        <option>A definir</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <div class="field-label-row">
+                      <label for="contact-location">Localisation</label>
+                      <span class="field-help-wrap">
+                        <button class="field-help-trigger" type="button" aria-label="Aide Localisation">?</button>
+                        <span class="field-help-pop" role="tooltip">
+                          Indiquez ville, region et pays du site. Adresse precise non requise.
+                        </span>
+                      </span>
+                    </div>
+                    <input id="contact-location" type="text" name="location" placeholder="Ville, region, pays" />
+                  </div>
+
+                  <div class="field field-full">
+                    <div class="field-label-row">
+                      <label for="contact-message">Contexte et attentes</label>
+                      <span class="field-help-wrap">
+                        <button class="field-help-trigger" type="button" aria-label="Aide Contexte et attentes">?</button>
+                        <span class="field-help-pop" role="tooltip">
+                          Decrivez le lieu, les enjeux, les contraintes et le resultat attendu.
+                        </span>
+                      </span>
+                    </div>
+                    <textarea
+                      id="contact-message"
+                      name="message"
+                      rows="5"
+                      data-textarea-autogrow
+                      placeholder="Decrivez le site, les contraintes et vos objectifs."
+                    ></textarea>
+                  </div>
+
+                  <div class="field field-full">
+                    <div class="field-label-row">
+                      <label for="contact-timeline">Horizon temporel</label>
+                      <span class="field-help-wrap">
+                        <button class="field-help-trigger" type="button" aria-label="Aide Horizon temporel">?</button>
+                        <span class="field-help-pop" role="tooltip">
+                          Precisez vos dates ou periode cible: etude, lancement, livrables.
+                        </span>
+                      </span>
+                    </div>
+                    <input
+                      id="contact-timeline"
+                      type="text"
+                      name="timeline"
+                      placeholder="Ex: Etude 2026 / mise en oeuvre 2027"
+                    />
+                  </div>
+
+                  <div class="field field-full field-upload">
+                    <label for="contact-files">Documents et fichiers</label>
+                    <p class="upload-hint">Formats classiques (images, video, audio, documents, archives). 500 Mo max par fichier.</p>
+                    <input
+                      id="contact-files"
+                      class="upload-input"
+                      type="file"
+                      name="attachments[]"
+                      multiple
+                      accept="image/*,video/*,audio/*,.pdf,.txt,.rtf,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.dwg,.dxf,.skp,.psd,.ai"
+                      data-upload-input
+                    />
+                    <label class="upload-trigger" for="contact-files">Ajouter des fichiers</label>
+                    <p class="upload-feedback" data-upload-feedback aria-live="polite"></p>
+                    <ul class="upload-list" data-upload-list></ul>
+                  </div>
+                </div>
+
+                <button class="contact-submit" type="submit">Envoyer la demande</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <a class="cta-row fadein" href="index.html">
+            <span>Retour au manifeste</span>
+            <span class="arrow">→</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container site-footer-grid">
+        <p class="site-footer-copy">&copy; Sebastien Lacomblez 2026</p>
+        <a class="site-footer-link" href="contact.html">Privacy Policy &amp; Legal Terms</a>
+        <p class="site-footer-copy site-footer-right">Designed by <a class="site-footer-emphasis" href="mailto:orson@posteo.net">Orson</a></p>
+      </div>
+    </footer>
+
+    <script src="assets/app.js"></script>
+  </body>
+</html>
