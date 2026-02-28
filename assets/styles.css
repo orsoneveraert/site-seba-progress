@@ -673,6 +673,11 @@ body.menu-open {
   width: 100%;
 }
 
+.poles-access-block .editorial-card {
+  border-top: none;
+  padding-top: 0;
+}
+
 .poles-links-stack {
   display: grid;
   grid-template-columns: 1fr;
