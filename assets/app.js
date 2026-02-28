@@ -3,6 +3,20 @@
   const openButton = document.querySelector('[data-menu-open]');
   const closeButton = document.querySelector('[data-menu-close]');
   const rootStyle = document.documentElement.style;
+  let lockedScrollY = 0;
+
+  const lockPageScroll = () => {
+    lockedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.classList.add('menu-open');
+    document.body.style.top = '-' + lockedScrollY + 'px';
+  };
+
+  const unlockPageScroll = () => {
+    if (!document.body.classList.contains('menu-open')) return;
+    document.body.classList.remove('menu-open');
+    document.body.style.top = '';
+    window.scrollTo(0, lockedScrollY);
+  };
 
   const syncMenuButtonPosition = () => {
     if (!openButton) return;
@@ -16,14 +30,15 @@
     syncMenuButtonPosition();
     menuPanel.setAttribute('data-open', 'true');
     menuPanel.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+    lockPageScroll();
+    menuPanel.scrollTop = 0;
   };
 
   const closeMenu = () => {
     if (!menuPanel) return;
     menuPanel.setAttribute('data-open', 'false');
     menuPanel.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
+    unlockPageScroll();
   };
 
   if (openButton) {
