@@ -323,6 +323,19 @@ small,
   line-height: 1.2;
 }
 
+.vision-copy {
+  padding-right: clamp(28px, 5vw, 120px);
+}
+
+.vision-copy .kicker {
+  max-width: 46ch;
+}
+
+.vision-copy .placeholder-copy {
+  max-width: 42ch;
+  text-wrap: pretty;
+}
+
 .tag-row {
   display: flex;
   gap: 10px;
@@ -1440,6 +1453,15 @@ textarea:focus {
     line-height: 0.93;
     letter-spacing: 0.002em;
     transform: translateY(-2px);
+  }
+
+  .vision-copy {
+    padding-right: 0;
+  }
+
+  .vision-copy .kicker,
+  .vision-copy .placeholder-copy {
+    max-width: 100%;
   }
 
   .form-grid {
