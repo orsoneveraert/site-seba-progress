@@ -8,6 +8,7 @@
   --accent: #222321;
   --accent-soft: #d6d6d2;
   --link-underline: #1f4f34;
+  --menu-panel-bg: color-mix(in srgb, #121212 95%, #222321 5%);
   --font-main: "Area Variable", "Area Extended", "Helvetica Neue", Arial, sans-serif;
   --area-inkt-body: 10;
   --area-wght-body: 440;
@@ -39,6 +40,19 @@
   --menu-btn-left: calc(100vw - ((100vw - var(--container)) / 2) - var(--menu-btn-size));
 }
 
+:root[data-theme="dark"] {
+  --bg: #121310;
+  --bg-alt: #121310;
+  --bg-soft: #121310;
+  --ink: #eaede6;
+  --muted: #a4a99f;
+  --line: #3b3f38;
+  --accent: #d8dfd3;
+  --accent-soft: #6d7a6d;
+  --link-underline: #6ba07f;
+  --menu-panel-bg: #080a08;
+}
+
 @font-face {
   font-family: "Area Variable";
   src:
@@ -59,6 +73,11 @@ html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
@@ -148,7 +167,8 @@ h5,
 .button-ghost,
 .hero-banner-text,
 .hero-banner-text .title-glyph-n,
-.hero-banner-text .title-glyph-m {
+.hero-banner-text .title-glyph-m,
+.theme-toggle {
   font-variation-settings:
     "INKT" var(--axis-inkt),
     "wght" var(--axis-wght),
@@ -165,7 +185,8 @@ h5,
 .site-footer-copy,
 .site-footer-link,
 .text-link,
-.button-ghost {
+.button-ghost,
+.theme-toggle {
   --axis-inkt: var(--area-inkt-ui);
   --axis-wght: var(--area-wght-ui);
   --axis-wdth: var(--area-wdth-ui);
@@ -448,7 +469,7 @@ small,
   inset: 0;
   min-height: 100vh;
   height: 100dvh;
-  background: color-mix(in srgb, var(--ink) 95%, var(--accent) 5%);
+  background: var(--menu-panel-bg);
   color: #f1f3ef;
   padding: max(32px, env(safe-area-inset-top)) 28px max(32px, env(safe-area-inset-bottom));
   overflow-y: auto;
@@ -1177,7 +1198,7 @@ textarea:focus {
 
 .site-footer-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr auto 1fr auto;
   align-items: center;
   gap: var(--sp-2);
   min-height: clamp(78px, 6.4vw, 104px);
@@ -1201,6 +1222,35 @@ textarea:focus {
 
 .site-footer-emphasis {
   text-decoration: none;
+}
+
+.theme-toggle {
+  justify-self: end;
+  width: 34px;
+  height: 34px;
+  border: var(--line-w) solid var(--ink);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
+.theme-toggle:focus-visible {
+  outline: none;
 }
 
 .cta-row {
@@ -1452,7 +1502,8 @@ textarea:focus {
   }
 
   .site-footer-link,
-  .site-footer-right {
+  .site-footer-right,
+  .theme-toggle {
     justify-self: start;
   }
 }

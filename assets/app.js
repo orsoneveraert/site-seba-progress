@@ -76,6 +76,72 @@
     }
   });
 
+  const themeToggles = document.querySelectorAll('[data-theme-toggle]');
+  const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  const themeStorageKey = 'site-theme-preference';
+
+  const readStoredTheme = function () {
+    try {
+      const stored = window.localStorage.getItem(themeStorageKey);
+      if (stored === 'dark' || stored === 'light') return stored;
+    } catch (error) {
+      return null;
+    }
+    return null;
+  };
+
+  const writeStoredTheme = function (theme) {
+    try {
+      window.localStorage.setItem(themeStorageKey, theme);
+    } catch (error) {
+      // Ignore storage errors (private mode, blocked storage, etc.).
+    }
+  };
+
+  const systemTheme = function () {
+    return themeMedia.matches ? 'dark' : 'light';
+  };
+
+  const syncThemeToggleUi = function (theme) {
+    const label = theme === 'dark' ? 'D' : 'L';
+    const action = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
+
+    themeToggles.forEach(function (toggle) {
+      toggle.textContent = label;
+      toggle.setAttribute('aria-label', action);
+      toggle.setAttribute('title', action);
+    });
+  };
+
+  const applyTheme = function (theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    syncThemeToggleUi(theme);
+  };
+
+  let preferredTheme = readStoredTheme();
+  applyTheme(preferredTheme || systemTheme());
+
+  themeToggles.forEach(function (toggle) {
+    toggle.addEventListener('click', function () {
+      const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      preferredTheme = next;
+      writeStoredTheme(next);
+      applyTheme(next);
+    });
+  });
+
+  const onSystemThemeChange = function () {
+    if (preferredTheme) return;
+    applyTheme(systemTheme());
+  };
+
+  if (typeof themeMedia.addEventListener === 'function') {
+    themeMedia.addEventListener('change', onSystemThemeChange);
+  } else if (typeof themeMedia.addListener === 'function') {
+    themeMedia.addListener(onSystemThemeChange);
+  }
+
   const fitHeroBannerTitle = function () {
     const title = document.querySelector('.hero-banner-text');
     if (!title) return;
