@@ -57,6 +57,8 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -285,6 +287,7 @@ small,
 .hero-title {
   font-size: var(--fz-display);
   line-height: 0.92;
+  overflow-wrap: anywhere;
 }
 
 .eyebrow {
@@ -1276,6 +1279,8 @@ textarea:focus {
 @media (max-width: 920px) {
   :root {
     --container: calc(100vw - 28px);
+    --fz-display: clamp(2.2rem, 9.8vw, 3.8rem);
+    --fz-hero: clamp(1.9rem, 7.6vw, 2.9rem);
     --sp-5: 64px;
     --sp-4: 42px;
     --sp-3: 30px;
