@@ -250,6 +250,8 @@
             entries.forEach(function (entry) {
               const note = entry.target;
               clampNoteToViewport(note);
+              note.setAttribute('data-canon-x', String(Math.round(parsePx(note.style.left, note.offsetLeft))));
+              note.setAttribute('data-canon-y', String(Math.round(parsePx(note.style.top, note.offsetTop))));
             });
             persistNotes();
           })
@@ -376,6 +378,20 @@
       return Math.min(Math.max(value, min), max);
     };
 
+    const setCanonicalPosition = function (note, x, y) {
+      note.setAttribute('data-canon-x', String(Math.round(x)));
+      note.setAttribute('data-canon-y', String(Math.round(y)));
+    };
+
+    const getCanonicalPosition = function (note) {
+      const fallbackX = parsePx(note.style.left, note.offsetLeft);
+      const fallbackY = parsePx(note.style.top, note.offsetTop);
+      return {
+        x: parsePx(note.getAttribute('data-canon-x'), fallbackX),
+        y: parsePx(note.getAttribute('data-canon-y'), fallbackY)
+      };
+    };
+
     const normalizeTone = function (tone) {
       return noteTones.includes(tone) ? tone : defaultNoteTone;
     };
@@ -383,10 +399,11 @@
     const serializeNotes = function () {
       return Array.from(feedbackLayer.querySelectorAll('.feedback-note')).map(function (note) {
         const editor = note.querySelector('.feedback-note-editor');
+        const canonical = getCanonicalPosition(note);
         return {
           id: note.getAttribute('data-note-id') || '',
-          x: Math.round(parsePx(note.style.left, note.offsetLeft)),
-          y: Math.round(parsePx(note.style.top, note.offsetTop)),
+          x: Math.round(canonical.x),
+          y: Math.round(canonical.y),
           w: Math.round(parsePx(note.style.width, note.offsetWidth)),
           h: Math.round(parsePx(note.style.height, note.offsetHeight)),
           text: editor ? editor.value : '',
@@ -471,11 +488,10 @@
 
       const maxLeft = Math.max(feedbackLayer.clientWidth - note.offsetWidth, 0);
       const maxTop = Math.max(getLayerHeight() - note.offsetHeight, 0);
-      const currentLeft = parsePx(note.style.left, note.offsetLeft);
-      const currentTop = parsePx(note.style.top, note.offsetTop);
+      const canonical = getCanonicalPosition(note);
 
-      note.style.left = clamp(currentLeft, 0, maxLeft) + 'px';
-      note.style.top = clamp(currentTop, 0, maxTop) + 'px';
+      note.style.left = clamp(canonical.x, 0, maxLeft) + 'px';
+      note.style.top = clamp(canonical.y, 0, maxTop) + 'px';
     };
 
     const fitNoteToContent = function (note) {
@@ -497,8 +513,9 @@
       note.setAttribute('data-note-id', id);
       note.setAttribute('data-tone', normalizeTone(noteData.tone));
       note.tabIndex = 0;
-      note.style.left = parsePx(noteData.x, 40) + 'px';
-      note.style.top = parsePx(noteData.y, 40) + 'px';
+      setCanonicalPosition(note, parsePx(noteData.x, 40), parsePx(noteData.y, 40));
+      note.style.left = '0px';
+      note.style.top = '0px';
       note.style.width = Math.max(parsePx(noteData.w, noteDefaultWidth), noteMinWidth) + 'px';
       note.style.height = Math.max(parsePx(noteData.h, noteDefaultHeight), noteMinHeight) + 'px';
 
@@ -582,6 +599,7 @@
 
       const stopDragging = function (event) {
         if (!dragState || dragState.note !== note || dragState.pointerId !== event.pointerId) return;
+        setCanonicalPosition(note, parsePx(note.style.left, note.offsetLeft), parsePx(note.style.top, note.offsetTop));
         dragState = null;
         document.body.classList.remove('feedback-dragging');
         persistNotes();
@@ -638,8 +656,7 @@
         const isDragging = dragState && dragState.note === existing;
 
         if (!isDragging) {
-          existing.style.left = Math.max(parsePx(item.x, 0), 0) + 'px';
-          existing.style.top = Math.max(parsePx(item.y, 0), 0) + 'px';
+          setCanonicalPosition(existing, Math.max(parsePx(item.x, 0), 0), Math.max(parsePx(item.y, 0), 0));
         }
 
         existing.setAttribute('data-tone', normalizeTone(item.tone));
@@ -800,7 +817,6 @@
       Array.from(feedbackLayer.querySelectorAll('.feedback-note')).forEach(function (note) {
         clampNoteToViewport(note);
       });
-      persistNotes();
     });
 
     window.addEventListener('scroll', syncFeedbackLayerSize, { passive: true });
