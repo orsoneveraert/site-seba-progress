@@ -219,6 +219,8 @@
     let feedbackVisible = false;
     let selectedNote = null;
     let dragState = null;
+    let feedbackViewportLock = null;
+    let feedbackViewportLockPending = false;
     let noteCounter = 0;
     const noteMinWidth = 140;
     const noteMinHeight = 60;
@@ -467,14 +469,57 @@
     };
 
     const isFeedbackViewportLocked = function () {
+      if (!feedbackViewportLock) return true;
       return (
-        Math.abs(window.innerWidth - feedbackLockWidth) <= feedbackLockTolerance &&
-        Math.abs(window.innerHeight - feedbackLockHeight) <= feedbackLockTolerance
+        Math.abs(window.innerWidth - feedbackViewportLock.width) <= feedbackLockTolerance &&
+        Math.abs(window.innerHeight - feedbackViewportLock.height) <= feedbackLockTolerance
       );
+    };
+
+    const setFeedbackViewportLock = function () {
+      feedbackViewportLock = {
+        width: window.innerWidth,
+        height: window.innerHeight
+      };
+    };
+
+    const tryResizeFeedbackViewport = function () {
+      if (typeof window.resizeTo !== 'function') return;
+      try {
+        window.resizeTo(feedbackLockWidth, feedbackLockHeight);
+      } catch (error) {
+        // Ignore browser restrictions.
+      }
+    };
+
+    const primeFeedbackViewportLock = function () {
+      feedbackViewportLockPending = true;
+      tryResizeFeedbackViewport();
+
+      const finalizeLock = function () {
+        feedbackViewportLockPending = false;
+        setFeedbackViewportLock();
+        updateFeedbackResizeGuard();
+      };
+
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(function () {
+          window.requestAnimationFrame(finalizeLock);
+        });
+      } else {
+        window.setTimeout(finalizeLock, 80);
+      }
     };
 
     const updateFeedbackResizeGuard = function () {
       if (!feedbackVisible) {
+        feedbackResizeGuard.classList.remove('is-active');
+        feedbackResizeGuard.setAttribute('aria-hidden', 'true');
+        feedbackLayer.classList.remove('is-size-locked');
+        return;
+      }
+
+      if (feedbackViewportLockPending || !feedbackViewportLock) {
         feedbackResizeGuard.classList.remove('is-active');
         feedbackResizeGuard.setAttribute('aria-hidden', 'true');
         feedbackLayer.classList.remove('is-size-locked');
@@ -764,6 +809,8 @@
         persistNotes();
         selectNote(null, false);
         dragState = null;
+        feedbackViewportLock = null;
+        feedbackViewportLockPending = false;
         document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
         feedbackToggles.forEach(function (toggle) {
@@ -773,6 +820,9 @@
       } else if (feedbackCollabEnabled) {
         pollRemoteNotes(false);
         startRemotePolling();
+      }
+      if (feedbackVisible) {
+        primeFeedbackViewportLock();
       }
       syncFeedbackLayerSize();
       setFeedbackUi();
