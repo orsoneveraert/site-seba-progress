@@ -484,7 +484,7 @@
     };
 
     const flushRemoteSync = async function () {
-      if (!feedbackCollabEnabled || isApplyingRemote || !hasPulledRemote) return;
+      if (!feedbackCollabEnabled || isApplyingRemote) return;
       if (isRemoteWriteInFlight) {
         remoteSyncQueued = true;
         return;
@@ -970,14 +970,20 @@
 
     if (feedbackCollabEnabled) {
       document.documentElement.classList.add('feedback-collab-enabled');
-      syncRemoteNotesNow(true, 2);
+      syncRemoteNotesNow(true, 2).then(function () {
+        flushRemoteSync();
+      });
       setupRealtimeSync();
       window.addEventListener('pageshow', function () {
-        syncRemoteNotesNow(false, 2);
+        syncRemoteNotesNow(false, 2).then(function () {
+          flushRemoteSync();
+        });
       });
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
-          syncRemoteNotesNow(false, 2);
+          syncRemoteNotesNow(false, 2).then(function () {
+            flushRemoteSync();
+          });
         }
       });
     }
@@ -999,7 +1005,9 @@
         });
         feedbackClose.blur();
       } else if (feedbackCollabEnabled) {
-        syncRemoteNotesNow(false, 3);
+        syncRemoteNotesNow(false, 3).then(function () {
+          flushRemoteSync();
+        });
         startRemotePolling();
       }
       if (feedbackVisible) feedbackBaselineColumns = getLayoutColumnCount();
