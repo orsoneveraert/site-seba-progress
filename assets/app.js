@@ -76,9 +76,47 @@
     }
   });
 
-  const themeToggles = document.querySelectorAll('[data-theme-toggle]');
+  const themeToggles = Array.from(document.querySelectorAll('[data-theme-toggle]'));
+  const feedbackToggles = [];
   const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   const themeStorageKey = 'site-theme-preference';
+  const feedbackPageKey = window.location.pathname.split('/').pop() || 'index.html';
+  const feedbackStorageKey = 'site-feedback-notes:' + feedbackPageKey;
+  const feedbackCollabConfig =
+    window.FEEDBACK_COLLAB && typeof window.FEEDBACK_COLLAB === 'object' ? window.FEEDBACK_COLLAB : null;
+  const feedbackCollabEnabled = Boolean(
+    feedbackCollabConfig &&
+      feedbackCollabConfig.enabled &&
+      feedbackCollabConfig.supabaseUrl &&
+      feedbackCollabConfig.supabaseAnonKey
+  );
+
+  themeToggles.forEach(function (toggle) {
+    let controls = toggle.closest('.theme-controls');
+
+    if (!controls && toggle.parentNode) {
+      controls = document.createElement('div');
+      controls.className = 'theme-controls';
+      toggle.parentNode.insertBefore(controls, toggle);
+      controls.appendChild(toggle);
+    }
+
+    if (!controls) return;
+
+    let feedbackToggle = controls.querySelector('[data-feedback-toggle]');
+    if (!feedbackToggle) {
+      feedbackToggle = document.createElement('button');
+      feedbackToggle.className = 'theme-toggle feedback-toggle';
+      feedbackToggle.type = 'button';
+      feedbackToggle.setAttribute('data-feedback-toggle', '');
+      feedbackToggle.setAttribute('aria-label', 'Afficher les commentaires');
+      feedbackToggle.setAttribute('title', 'Afficher les commentaires');
+      feedbackToggle.textContent = 'F';
+      controls.appendChild(feedbackToggle);
+    }
+
+    feedbackToggles.push(feedbackToggle);
+  });
 
   const readStoredTheme = function () {
     try {
@@ -140,6 +178,555 @@
     themeMedia.addEventListener('change', onSystemThemeChange);
   } else if (typeof themeMedia.addListener === 'function') {
     themeMedia.addListener(onSystemThemeChange);
+  }
+
+  if (feedbackToggles.length) {
+    const feedbackLayer = document.createElement('div');
+    feedbackLayer.className = 'feedback-layer';
+    feedbackLayer.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(feedbackLayer);
+
+    let feedbackVisible = false;
+    let selectedNote = null;
+    let dragState = null;
+    let noteCounter = 0;
+    let isApplyingRemote = false;
+    let isRemoteWriteInFlight = false;
+    let remoteSyncQueued = false;
+    let remotePollTimer = null;
+    let hasPulledRemote = false;
+    const collabPollMs = Math.max(
+      900,
+      Number(
+        feedbackCollabConfig && Number.isFinite(Number(feedbackCollabConfig.pollMs))
+          ? Number(feedbackCollabConfig.pollMs)
+          : 2400
+      )
+    );
+    const collabTable =
+      feedbackCollabConfig && typeof feedbackCollabConfig.table === 'string' && feedbackCollabConfig.table.trim()
+        ? feedbackCollabConfig.table.trim()
+        : 'feedback_notes';
+    const collabBaseUrl =
+      feedbackCollabConfig && typeof feedbackCollabConfig.supabaseUrl === 'string'
+        ? feedbackCollabConfig.supabaseUrl.replace(/\/+$/, '')
+        : '';
+    const collabApiKey =
+      feedbackCollabConfig && typeof feedbackCollabConfig.supabaseAnonKey === 'string'
+        ? feedbackCollabConfig.supabaseAnonKey
+        : '';
+    const collabEndpoint = collabBaseUrl ? collabBaseUrl + '/rest/v1/' + collabTable : '';
+    const collabPageFilterValue = encodeURIComponent(feedbackPageKey);
+    const noteResizeObserver =
+      typeof ResizeObserver === 'function'
+        ? new ResizeObserver(function (entries) {
+            entries.forEach(function (entry) {
+              const note = entry.target;
+              clampNoteToViewport(note);
+            });
+            persistNotes();
+          })
+        : null;
+
+    const getLayerHeight = function () {
+      return Math.max(
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight,
+        window.innerHeight
+      );
+    };
+
+    const syncFeedbackLayerSize = function () {
+      feedbackLayer.style.height = getLayerHeight() + 'px';
+    };
+
+    const readStoredNotes = function () {
+      try {
+        const raw = window.localStorage.getItem(feedbackStorageKey);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+      } catch (error) {
+        return [];
+      }
+    };
+
+    const writeStoredNotes = function (notes) {
+      try {
+        window.localStorage.setItem(feedbackStorageKey, JSON.stringify(notes));
+      } catch (error) {
+        // Ignore storage errors.
+      }
+    };
+
+    const collabHeaders = function (preferValue) {
+      const headers = {
+        apikey: collabApiKey,
+        Authorization: 'Bearer ' + collabApiKey,
+        'Content-Type': 'application/json'
+      };
+      if (preferValue) headers.Prefer = preferValue;
+      return headers;
+    };
+
+    const fetchRemoteNotes = async function () {
+      if (!feedbackCollabEnabled || !collabEndpoint) return null;
+
+      try {
+        const response = await window.fetch(
+          collabEndpoint +
+            '?page_path=eq.' +
+            collabPageFilterValue +
+            '&select=id,x,y,w,h,text,updated_at&order=updated_at.asc',
+          {
+            method: 'GET',
+            headers: collabHeaders('')
+          }
+        );
+
+        if (!response.ok) return null;
+        const payload = await response.json();
+        return Array.isArray(payload) ? payload : [];
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const upsertRemoteNotes = async function (notes) {
+      if (!feedbackCollabEnabled || !collabEndpoint) return;
+      if (!Array.isArray(notes) || !notes.length) return;
+
+      const payload = notes.map(function (item) {
+        return {
+          id: item.id,
+          page_path: feedbackPageKey,
+          x: item.x,
+          y: item.y,
+          w: item.w,
+          h: item.h,
+          text: item.text
+        };
+      });
+
+      try {
+        await window.fetch(collabEndpoint, {
+          method: 'POST',
+          headers: collabHeaders('resolution=merge-duplicates'),
+          body: JSON.stringify(payload)
+        });
+      } catch (error) {
+        // Ignore network errors and keep local behavior.
+      }
+    };
+
+    const deleteRemoteNote = async function (noteId) {
+      if (!feedbackCollabEnabled || !collabEndpoint || !noteId) return;
+
+      try {
+        await window.fetch(
+          collabEndpoint +
+            '?id=eq.' +
+            encodeURIComponent(noteId) +
+            '&page_path=eq.' +
+            collabPageFilterValue,
+          {
+            method: 'DELETE',
+            headers: collabHeaders('')
+          }
+        );
+      } catch (error) {
+        // Ignore network errors and keep local behavior.
+      }
+    };
+
+    const parsePx = function (value, fallback) {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const clamp = function (value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    };
+
+    const serializeNotes = function () {
+      return Array.from(feedbackLayer.querySelectorAll('.feedback-note')).map(function (note) {
+        const editor = note.querySelector('.feedback-note-editor');
+        return {
+          id: note.getAttribute('data-note-id') || '',
+          x: Math.round(parsePx(note.style.left, note.offsetLeft)),
+          y: Math.round(parsePx(note.style.top, note.offsetTop)),
+          w: Math.round(parsePx(note.style.width, note.offsetWidth)),
+          h: Math.round(parsePx(note.style.height, note.offsetHeight)),
+          text: editor ? editor.value : ''
+        };
+      });
+    };
+
+    const flushRemoteSync = async function () {
+      if (!feedbackCollabEnabled || isApplyingRemote) return;
+      if (isRemoteWriteInFlight) {
+        remoteSyncQueued = true;
+        return;
+      }
+
+      isRemoteWriteInFlight = true;
+      const snapshot = serializeNotes();
+      await upsertRemoteNotes(snapshot);
+      isRemoteWriteInFlight = false;
+
+      if (remoteSyncQueued) {
+        remoteSyncQueued = false;
+        flushRemoteSync();
+      }
+    };
+
+    const persistNotes = function () {
+      writeStoredNotes(serializeNotes());
+      if (feedbackCollabEnabled && !isApplyingRemote) {
+        flushRemoteSync();
+      }
+    };
+
+    const setFeedbackUi = function () {
+      feedbackToggles.forEach(function (toggle) {
+        toggle.classList.toggle('is-active', feedbackVisible);
+        const label = feedbackVisible ? 'Masquer les commentaires' : 'Afficher les commentaires';
+        toggle.setAttribute('aria-label', label);
+        toggle.setAttribute('title', label);
+      });
+
+      feedbackLayer.classList.toggle('is-active', feedbackVisible);
+      feedbackLayer.setAttribute('aria-hidden', feedbackVisible ? 'false' : 'true');
+    };
+
+    const selectNote = function (note, focusNote) {
+      if (selectedNote === note) {
+        if (focusNote) note.focus({ preventScroll: true });
+        return;
+      }
+
+      if (selectedNote) {
+        selectedNote.classList.remove('is-selected');
+      }
+
+      selectedNote = note || null;
+
+      if (selectedNote) {
+        selectedNote.classList.add('is-selected');
+        if (focusNote) selectedNote.focus({ preventScroll: true });
+      }
+    };
+
+    const removeNote = function (note) {
+      if (!note) return;
+      const noteId = note.getAttribute('data-note-id') || '';
+      if (noteResizeObserver) noteResizeObserver.unobserve(note);
+      if (selectedNote === note) selectedNote = null;
+      note.remove();
+      persistNotes();
+      if (feedbackCollabEnabled) {
+        deleteRemoteNote(noteId);
+      }
+    };
+
+    const clampNoteToViewport = function (note) {
+      if (!note) return;
+      syncFeedbackLayerSize();
+
+      const maxLeft = Math.max(feedbackLayer.clientWidth - note.offsetWidth, 0);
+      const maxTop = Math.max(getLayerHeight() - note.offsetHeight, 0);
+      const currentLeft = parsePx(note.style.left, note.offsetLeft);
+      const currentTop = parsePx(note.style.top, note.offsetTop);
+
+      note.style.left = clamp(currentLeft, 0, maxLeft) + 'px';
+      note.style.top = clamp(currentTop, 0, maxTop) + 'px';
+    };
+
+    const fitNoteToContent = function (note) {
+      const editor = note.querySelector('.feedback-note-editor');
+      if (!editor) return;
+
+      const overflow = editor.scrollHeight - editor.clientHeight;
+      if (overflow <= 1) return;
+
+      note.style.height = Math.max(note.offsetHeight + overflow + 8, note.offsetHeight) + 'px';
+      clampNoteToViewport(note);
+    };
+
+    const createNote = function (noteData, shouldFocusEditor) {
+      noteCounter += 1;
+      const id = noteData.id || 'n-' + Date.now() + '-' + noteCounter;
+      const note = document.createElement('article');
+      note.className = 'feedback-note';
+      note.setAttribute('data-note-id', id);
+      note.tabIndex = 0;
+      note.style.left = parsePx(noteData.x, 40) + 'px';
+      note.style.top = parsePx(noteData.y, 40) + 'px';
+      note.style.width = Math.max(parsePx(noteData.w, 184), 140) + 'px';
+      note.style.height = Math.max(parsePx(noteData.h, 184), 140) + 'px';
+
+      const handle = document.createElement('div');
+      handle.className = 'feedback-note-handle';
+      handle.setAttribute('aria-hidden', 'true');
+
+      const editor = document.createElement('textarea');
+      editor.className = 'feedback-note-editor';
+      editor.placeholder = 'Commentaire...';
+      editor.value = typeof noteData.text === 'string' ? noteData.text : '';
+
+      note.appendChild(handle);
+      note.appendChild(editor);
+      feedbackLayer.appendChild(note);
+
+      clampNoteToViewport(note);
+      fitNoteToContent(note);
+
+      if (noteResizeObserver) {
+        noteResizeObserver.observe(note);
+      }
+
+      const isPointerInResizeCorner = function (event) {
+        const rect = note.getBoundingClientRect();
+        const zone = 18;
+        return event.clientX >= rect.right - zone && event.clientY >= rect.bottom - zone;
+      };
+
+      const startDragging = function (event) {
+        if (event.button !== 0) return;
+        if (event.target.closest('.feedback-note-editor')) return;
+        if (isPointerInResizeCorner(event)) return;
+        event.preventDefault();
+        selectNote(note, true);
+
+        dragState = {
+          note: note,
+          pointerId: event.pointerId,
+          startX: event.pageX,
+          startY: event.pageY,
+          startLeft: parsePx(note.style.left, note.offsetLeft),
+          startTop: parsePx(note.style.top, note.offsetTop)
+        };
+
+        note.setPointerCapture(event.pointerId);
+        document.body.classList.add('feedback-dragging');
+      };
+
+      note.addEventListener('pointerdown', function (event) {
+        selectNote(note, false);
+        startDragging(event);
+      });
+
+      note.addEventListener('focus', function () {
+        selectNote(note, false);
+      });
+
+      editor.addEventListener('focus', function () {
+        selectNote(note, false);
+      });
+
+      editor.addEventListener('input', function () {
+        fitNoteToContent(note);
+        persistNotes();
+      });
+
+      handle.addEventListener('pointerdown', startDragging);
+
+      note.addEventListener('pointermove', function (event) {
+        if (!dragState || dragState.note !== note || dragState.pointerId !== event.pointerId) return;
+        event.preventDefault();
+
+        const dx = event.pageX - dragState.startX;
+        const dy = event.pageY - dragState.startY;
+        const maxLeft = Math.max(feedbackLayer.clientWidth - note.offsetWidth, 0);
+        const maxTop = Math.max(getLayerHeight() - note.offsetHeight, 0);
+        note.style.left = clamp(dragState.startLeft + dx, 0, maxLeft) + 'px';
+        note.style.top = clamp(dragState.startTop + dy, 0, maxTop) + 'px';
+      });
+
+      const stopDragging = function (event) {
+        if (!dragState || dragState.note !== note || dragState.pointerId !== event.pointerId) return;
+        dragState = null;
+        document.body.classList.remove('feedback-dragging');
+        persistNotes();
+      };
+
+      note.addEventListener('pointerup', stopDragging);
+      note.addEventListener('pointercancel', stopDragging);
+
+      note.addEventListener('pointerup', function () {
+        persistNotes();
+      });
+
+      if (shouldFocusEditor) {
+        selectNote(note, false);
+        editor.focus({ preventScroll: true });
+      }
+
+      return note;
+    };
+
+    const findNoteById = function (noteId) {
+      return Array.from(feedbackLayer.querySelectorAll('.feedback-note')).find(function (note) {
+        return note.getAttribute('data-note-id') === noteId;
+      });
+    };
+
+    const applyRemoteNotes = function (remoteNotes) {
+      if (!Array.isArray(remoteNotes)) return;
+      isApplyingRemote = true;
+
+      const remoteById = new Map();
+      remoteNotes.forEach(function (item) {
+        if (!item || !item.id) return;
+        remoteById.set(String(item.id), item);
+      });
+
+      Array.from(feedbackLayer.querySelectorAll('.feedback-note')).forEach(function (note) {
+        const noteId = note.getAttribute('data-note-id') || '';
+        if (!noteId || remoteById.has(noteId)) return;
+        if (noteResizeObserver) noteResizeObserver.unobserve(note);
+        if (selectedNote === note) selectedNote = null;
+        note.remove();
+      });
+
+      remoteById.forEach(function (item, noteId) {
+        const existing = findNoteById(noteId);
+        if (!existing) {
+          createNote(item, false);
+          return;
+        }
+
+        const editor = existing.querySelector('.feedback-note-editor');
+        const editorFocused = editor && document.activeElement === editor;
+        const isDragging = dragState && dragState.note === existing;
+
+        if (!isDragging) {
+          existing.style.left = Math.max(parsePx(item.x, 0), 0) + 'px';
+          existing.style.top = Math.max(parsePx(item.y, 0), 0) + 'px';
+        }
+
+        existing.style.width = Math.max(parsePx(item.w, existing.offsetWidth), 140) + 'px';
+        existing.style.height = Math.max(parsePx(item.h, existing.offsetHeight), 140) + 'px';
+
+        if (editor && !editorFocused) {
+          editor.value = typeof item.text === 'string' ? item.text : '';
+          fitNoteToContent(existing);
+        }
+
+        clampNoteToViewport(existing);
+      });
+
+      isApplyingRemote = false;
+      writeStoredNotes(serializeNotes());
+    };
+
+    const pollRemoteNotes = async function (seedWhenEmpty) {
+      if (!feedbackCollabEnabled) return;
+      const remoteNotes = await fetchRemoteNotes();
+      if (!remoteNotes) return;
+
+      if (seedWhenEmpty && !remoteNotes.length) {
+        const localSnapshot = serializeNotes();
+        if (localSnapshot.length) {
+          await upsertRemoteNotes(localSnapshot);
+          const seededRemote = await fetchRemoteNotes();
+          if (seededRemote) applyRemoteNotes(seededRemote);
+          hasPulledRemote = true;
+          return;
+        }
+      }
+
+      applyRemoteNotes(remoteNotes);
+      hasPulledRemote = true;
+    };
+
+    const stopRemotePolling = function () {
+      if (!remotePollTimer) return;
+      window.clearInterval(remotePollTimer);
+      remotePollTimer = null;
+    };
+
+    const startRemotePolling = function () {
+      if (!feedbackCollabEnabled || remotePollTimer) return;
+      remotePollTimer = window.setInterval(function () {
+        if (!feedbackVisible || document.hidden) return;
+        pollRemoteNotes(false);
+      }, collabPollMs);
+    };
+
+    const loadedNotes = readStoredNotes();
+    loadedNotes.forEach(function (item) {
+      createNote(item, false);
+    });
+    syncFeedbackLayerSize();
+    setFeedbackUi();
+
+    if (feedbackCollabEnabled) {
+      document.documentElement.classList.add('feedback-collab-enabled');
+      pollRemoteNotes(true);
+    }
+
+    const toggleFeedback = function () {
+      feedbackVisible = !feedbackVisible;
+      if (!feedbackVisible) {
+        selectNote(null, false);
+        stopRemotePolling();
+      } else if (feedbackCollabEnabled) {
+        if (!hasPulledRemote) {
+          pollRemoteNotes(false);
+        }
+        startRemotePolling();
+      }
+      syncFeedbackLayerSize();
+      setFeedbackUi();
+    };
+
+    feedbackToggles.forEach(function (toggle) {
+      toggle.addEventListener('click', function () {
+        toggleFeedback();
+      });
+    });
+
+    feedbackLayer.addEventListener('pointerdown', function (event) {
+      if (!feedbackVisible) return;
+      if (event.target !== feedbackLayer || event.button !== 0) return;
+
+      selectNote(null, false);
+      const note = createNote(
+        {
+          x: event.pageX - 92,
+          y: event.pageY - 92,
+          w: 184,
+          h: 184,
+          text: ''
+        },
+        true
+      );
+
+      clampNoteToViewport(note);
+      persistNotes();
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (!feedbackVisible || !selectedNote) return;
+      if (event.key !== 'Backspace' && event.key !== 'Delete') return;
+
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.classList.contains('feedback-note-editor')) return;
+
+      event.preventDefault();
+      removeNote(selectedNote);
+    });
+
+    window.addEventListener('resize', function () {
+      syncFeedbackLayerSize();
+      Array.from(feedbackLayer.querySelectorAll('.feedback-note')).forEach(function (note) {
+        clampNoteToViewport(note);
+      });
+      persistNotes();
+    });
+
+    window.addEventListener('scroll', syncFeedbackLayerSize, { passive: true });
   }
 
   const fitHeroBannerTitle = function () {
