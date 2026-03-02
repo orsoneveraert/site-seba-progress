@@ -94,8 +94,26 @@
   const themeStorageKey = 'site-theme-preference';
   const feedbackPageKey = window.location.pathname.split('/').pop() || 'index.html';
   const feedbackStorageKey = 'site-feedback-notes:' + feedbackPageKey;
-  const feedbackCollabConfig =
+  const builtInFeedbackCollabConfig = {
+    enabled: true,
+    supabaseUrl: 'https://agtktzjbhfgfqdfxyleq.supabase.co',
+    supabaseAnonKey:
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFndGt0empiaGZnZnFkZnh5bGVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NTUyNDMsImV4cCI6MjA4ODAzMTI0M30.489eSSickkP1obLIDTRwDpsbcAnMzCqEzgxrWGaTk30',
+    table: 'feedback_notes',
+    pollMs: 2400
+  };
+  const userFeedbackCollabConfig =
     window.FEEDBACK_COLLAB && typeof window.FEEDBACK_COLLAB === 'object' ? window.FEEDBACK_COLLAB : null;
+  const userConfigHasCredentials = Boolean(
+    userFeedbackCollabConfig &&
+      typeof userFeedbackCollabConfig.supabaseUrl === 'string' &&
+      userFeedbackCollabConfig.supabaseUrl.trim() &&
+      typeof userFeedbackCollabConfig.supabaseAnonKey === 'string' &&
+      userFeedbackCollabConfig.supabaseAnonKey.trim()
+  );
+  const feedbackCollabConfig = userConfigHasCredentials
+    ? userFeedbackCollabConfig
+    : builtInFeedbackCollabConfig;
   const feedbackCollabEnabled = Boolean(
     feedbackCollabConfig &&
       feedbackCollabConfig.enabled &&
@@ -792,6 +810,14 @@
     if (feedbackCollabEnabled) {
       document.documentElement.classList.add('feedback-collab-enabled');
       pollRemoteNotes(true);
+      window.addEventListener('pageshow', function () {
+        pollRemoteNotes(false);
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+          pollRemoteNotes(false);
+        }
+      });
     }
 
     const setFeedbackVisible = function (nextVisible) {
