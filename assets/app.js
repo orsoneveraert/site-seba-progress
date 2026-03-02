@@ -340,13 +340,11 @@
       if (!feedbackCollabEnabled || !collabEndpoint) return null;
 
       try {
-        const cacheBust = Date.now();
         const response = await window.fetch(
           collabEndpoint +
             '?page_path=eq.' +
             collabPageFilterValue +
-            '&select=id,x,y,w,h,text,tone,updated_at&order=updated_at.asc&_ts=' +
-            cacheBust,
+            '&select=id,x,y,w,h,text,tone,updated_at&order=updated_at.asc',
           {
             method: 'GET',
             cache: 'no-store',
