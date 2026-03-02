@@ -254,6 +254,9 @@
     let feedbackSyncInProgress = false;
     let remotePollTimer = null;
     let hasPulledRemote = false;
+    let supabaseRealtimeClient = null;
+    let supabaseRealtimeChannel = null;
+    let isRealtimeSubscribed = false;
     const collabStateById = new Map();
     const collabPollMs = Math.max(
       900,
@@ -517,6 +520,31 @@
       return new Promise(function (resolve) {
         window.setTimeout(resolve, ms);
       });
+    };
+
+    const loadSupabaseRealtimeLibrary = function () {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        return Promise.resolve(true);
+      }
+
+      if (window.__feedbackSupabaseLoadPromise) {
+        return window.__feedbackSupabaseLoadPromise;
+      }
+
+      window.__feedbackSupabaseLoadPromise = new Promise(function (resolve) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.async = true;
+        script.onload = function () {
+          resolve(Boolean(window.supabase && typeof window.supabase.createClient === 'function'));
+        };
+        script.onerror = function () {
+          resolve(false);
+        };
+        document.head.appendChild(script);
+      });
+
+      return window.__feedbackSupabaseLoadPromise;
     };
 
     const persistNotes = function () {
@@ -880,6 +908,45 @@
       return synced;
     };
 
+    const setupRealtimeSync = async function () {
+      if (!feedbackCollabEnabled || isRealtimeSubscribed) return;
+
+      const supabaseLoaded = await loadSupabaseRealtimeLibrary();
+      if (!supabaseLoaded) return;
+
+      try {
+        supabaseRealtimeClient = window.supabase.createClient(collabBaseUrl, collabApiKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          }
+        });
+
+        supabaseRealtimeChannel = supabaseRealtimeClient
+          .channel('feedback-notes-' + feedbackPageKey)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: collabTable,
+              filter: 'page_path=eq.' + feedbackPageKey
+            },
+            function () {
+              syncRemoteNotesNow(false, 2);
+            }
+          )
+          .subscribe(function (status) {
+            if (status === 'SUBSCRIBED') {
+              isRealtimeSubscribed = true;
+              syncRemoteNotesNow(false, 2);
+            }
+          });
+      } catch (error) {
+        isRealtimeSubscribed = false;
+      }
+    };
+
     const stopRemotePolling = function () {
       if (!remotePollTimer) return;
       window.clearInterval(remotePollTimer);
@@ -894,7 +961,7 @@
       }, collabPollMs);
     };
 
-    const loadedNotes = readStoredNotes();
+    const loadedNotes = feedbackCollabEnabled ? [] : readStoredNotes();
     loadedNotes.forEach(function (item) {
       createNote(item, false);
     });
@@ -904,6 +971,7 @@
     if (feedbackCollabEnabled) {
       document.documentElement.classList.add('feedback-collab-enabled');
       syncRemoteNotesNow(true, 2);
+      setupRealtimeSync();
       window.addEventListener('pageshow', function () {
         syncRemoteNotesNow(false, 2);
       });
