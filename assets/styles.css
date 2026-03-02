@@ -38,6 +38,8 @@
   --menu-btn-size: 58px;
   --menu-btn-top: calc((var(--header-h) - var(--menu-btn-size)) / 2);
   --menu-btn-left: calc(100vw - ((100vw - var(--container)) / 2) - var(--menu-btn-size));
+  --brand-btn-top: calc((var(--header-h) - var(--menu-btn-size)) / 2);
+  --brand-btn-left: calc((100vw - var(--container)) / 2);
 }
 
 :root[data-theme="dark"] {
@@ -1291,30 +1293,50 @@ textarea:focus {
   position: absolute;
   inset: 0;
   z-index: 70;
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+  transition: opacity 0.18s ease;
 }
 
 .feedback-close {
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: var(--brand-btn-top);
+  left: var(--brand-btn-left);
   z-index: 90;
-  width: 34px;
-  height: 34px;
-  border: var(--line-w) solid var(--ink);
+  width: var(--menu-btn-size);
+  height: var(--menu-btn-size);
+  border: var(--line-w) solid #0f0f0f;
   border-radius: 50%;
-  background: transparent;
-  color: var(--ink);
+  background: #0f0f0f;
+  color: #ffffff;
   display: grid;
   place-items: center;
   padding: 0;
-  font-size: 11px;
+  font-size: 0;
   line-height: 1;
   letter-spacing: 0;
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.22s ease, background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  transition: opacity 0.22s ease, transform 0.2s ease, background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.feedback-close::before,
+.feedback-close::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: var(--line-w);
+  background: currentColor;
+}
+
+.feedback-close::before {
+  transform: rotate(45deg);
+}
+
+.feedback-close::after {
+  transform: rotate(-45deg);
 }
 
 .feedback-close.is-active {
@@ -1324,9 +1346,9 @@ textarea:focus {
 
 .feedback-close:hover,
 .feedback-close:focus-visible {
-  background: var(--ink);
-  color: var(--bg);
-  border-color: var(--ink);
+  background: #000000;
+  border-color: #000000;
+  transform: scale(1.02);
 }
 
 .feedback-close:focus-visible {
@@ -1334,6 +1356,8 @@ textarea:focus {
 }
 
 .feedback-layer.is-active {
+  opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }
 

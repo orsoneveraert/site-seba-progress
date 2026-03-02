@@ -1,6 +1,7 @@
 (function () {
   const menuPanel = document.querySelector('[data-menu]');
   const openButton = document.querySelector('[data-menu-open]');
+  const brandButton = document.querySelector('.brand');
   const closeButton = document.querySelector('[data-menu-close]');
   const rootStyle = document.documentElement.style;
   let lockedScrollY = 0;
@@ -18,16 +19,23 @@
     window.scrollTo(0, lockedScrollY);
   };
 
-  const syncMenuButtonPosition = () => {
-    if (!openButton) return;
-    const buttonRect = openButton.getBoundingClientRect();
-    rootStyle.setProperty('--menu-btn-top', buttonRect.top + 'px');
-    rootStyle.setProperty('--menu-btn-left', buttonRect.left + 'px');
+  const syncHeaderButtonPositions = () => {
+    if (openButton) {
+      const menuRect = openButton.getBoundingClientRect();
+      rootStyle.setProperty('--menu-btn-top', menuRect.top + 'px');
+      rootStyle.setProperty('--menu-btn-left', menuRect.left + 'px');
+    }
+
+    if (brandButton) {
+      const brandRect = brandButton.getBoundingClientRect();
+      rootStyle.setProperty('--brand-btn-top', brandRect.top + 'px');
+      rootStyle.setProperty('--brand-btn-left', brandRect.left + 'px');
+    }
   };
 
   const openMenu = () => {
     if (!menuPanel) return;
-    syncMenuButtonPosition();
+    syncHeaderButtonPositions();
     menuPanel.setAttribute('data-open', 'true');
     menuPanel.setAttribute('aria-hidden', 'false');
     lockPageScroll();
@@ -42,10 +50,14 @@
   };
 
   if (openButton) {
-    syncMenuButtonPosition();
+    syncHeaderButtonPositions();
     openButton.addEventListener('click', openMenu);
-    window.addEventListener('resize', syncMenuButtonPosition);
-    window.addEventListener('scroll', syncMenuButtonPosition, { passive: true });
+    window.addEventListener('resize', syncHeaderButtonPositions);
+    window.addEventListener('scroll', syncHeaderButtonPositions, { passive: true });
+  } else if (brandButton) {
+    syncHeaderButtonPositions();
+    window.addEventListener('resize', syncHeaderButtonPositions);
+    window.addEventListener('scroll', syncHeaderButtonPositions, { passive: true });
   }
 
   if (closeButton) {
@@ -683,14 +695,13 @@
 
       feedbackVisible = nextVisible;
       if (!feedbackVisible) {
+        persistNotes();
         selectNote(null, false);
         dragState = null;
         document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
       } else if (feedbackCollabEnabled) {
-        if (!hasPulledRemote) {
-          pollRemoteNotes(false);
-        }
+        pollRemoteNotes(false);
         startRemotePolling();
       }
       syncFeedbackLayerSize();
