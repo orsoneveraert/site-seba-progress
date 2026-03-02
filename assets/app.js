@@ -288,12 +288,14 @@
       }
     };
 
-    const collabHeaders = function (preferValue) {
+    const collabHeaders = function (preferValue, includeJsonBody) {
       const headers = {
         apikey: collabApiKey,
-        Authorization: 'Bearer ' + collabApiKey,
-        'Content-Type': 'application/json'
+        Authorization: 'Bearer ' + collabApiKey
       };
+      if (includeJsonBody) {
+        headers['Content-Type'] = 'application/json';
+      }
       if (preferValue) headers.Prefer = preferValue;
       return headers;
     };
@@ -302,14 +304,17 @@
       if (!feedbackCollabEnabled || !collabEndpoint) return null;
 
       try {
+        const cacheBust = Date.now();
         const response = await window.fetch(
           collabEndpoint +
             '?page_path=eq.' +
             collabPageFilterValue +
-            '&select=id,x,y,w,h,text,tone,updated_at&order=updated_at.asc',
+            '&select=id,x,y,w,h,text,tone,updated_at&order=updated_at.asc&_ts=' +
+            cacheBust,
           {
             method: 'GET',
-            headers: collabHeaders('')
+            cache: 'no-store',
+            headers: collabHeaders('', false)
           }
         );
 
@@ -341,7 +346,7 @@
       try {
         await window.fetch(collabEndpoint, {
           method: 'POST',
-          headers: collabHeaders('resolution=merge-duplicates'),
+          headers: collabHeaders('resolution=merge-duplicates', true),
           body: JSON.stringify(payload)
         });
       } catch (error) {
@@ -361,7 +366,7 @@
             collabPageFilterValue,
           {
             method: 'DELETE',
-            headers: collabHeaders('')
+            headers: collabHeaders('', false)
           }
         );
       } catch (error) {
