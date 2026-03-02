@@ -92,7 +92,13 @@
   const feedbackToggles = [];
   const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   const themeStorageKey = 'site-theme-preference';
-  const feedbackPageKey = window.location.pathname.split('/').pop() || 'index.html';
+  const resolveFeedbackPageKey = function () {
+    const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+    const lastSegment = normalizedPath.split('/').pop() || '';
+    if (!lastSegment || !lastSegment.includes('.')) return 'index.html';
+    return lastSegment;
+  };
+  const feedbackPageKey = resolveFeedbackPageKey();
   const feedbackStorageKey = 'site-feedback-notes:' + feedbackPageKey;
   const builtInFeedbackCollabConfig = {
     enabled: true,
@@ -245,6 +251,7 @@
     let isApplyingRemote = false;
     let isRemoteWriteInFlight = false;
     let remoteSyncQueued = false;
+    let feedbackSyncInProgress = false;
     let remotePollTimer = null;
     let hasPulledRemote = false;
     const collabStateById = new Map();
@@ -504,6 +511,12 @@
         remoteSyncQueued = false;
         flushRemoteSync();
       }
+    };
+
+    const wait = function (ms) {
+      return new Promise(function (resolve) {
+        window.setTimeout(resolve, ms);
+      });
     };
 
     const persistNotes = function () {
@@ -827,9 +840,9 @@
     };
 
     const pollRemoteNotes = async function (seedWhenEmpty) {
-      if (!feedbackCollabEnabled) return;
+      if (!feedbackCollabEnabled) return false;
       const remoteNotes = await fetchRemoteNotes();
-      if (!remoteNotes) return;
+      if (!remoteNotes) return false;
 
       if (seedWhenEmpty && !remoteNotes.length) {
         const localSnapshot = serializeNotes();
@@ -838,12 +851,33 @@
           const seededRemote = await fetchRemoteNotes();
           if (seededRemote) applyRemoteNotes(seededRemote);
           hasPulledRemote = true;
-          return;
+          return true;
         }
       }
 
       applyRemoteNotes(remoteNotes);
       hasPulledRemote = true;
+      return true;
+    };
+
+    const syncRemoteNotesNow = async function (seedWhenEmpty, maxAttempts) {
+      if (!feedbackCollabEnabled) return true;
+      if (feedbackSyncInProgress) return false;
+
+      feedbackSyncInProgress = true;
+      let synced = false;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const ok = await pollRemoteNotes(seedWhenEmpty && attempt === 1);
+        if (ok) {
+          synced = true;
+          break;
+        }
+        if (attempt < maxAttempts) {
+          await wait(420 * attempt);
+        }
+      }
+      feedbackSyncInProgress = false;
+      return synced;
     };
 
     const stopRemotePolling = function () {
@@ -869,13 +903,13 @@
 
     if (feedbackCollabEnabled) {
       document.documentElement.classList.add('feedback-collab-enabled');
-      pollRemoteNotes(true);
+      syncRemoteNotesNow(true, 2);
       window.addEventListener('pageshow', function () {
-        pollRemoteNotes(false);
+        syncRemoteNotesNow(false, 2);
       });
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
-          pollRemoteNotes(false);
+          syncRemoteNotesNow(false, 2);
         }
       });
     }
@@ -888,6 +922,7 @@
         persistNotes();
         selectNote(null, false);
         dragState = null;
+        feedbackSyncInProgress = false;
         feedbackBaselineColumns = null;
         document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
@@ -896,7 +931,7 @@
         });
         feedbackClose.blur();
       } else if (feedbackCollabEnabled) {
-        pollRemoteNotes(false);
+        syncRemoteNotesNow(false, 3);
         startRemotePolling();
       }
       if (feedbackVisible) feedbackBaselineColumns = getLayoutColumnCount();
@@ -930,6 +965,7 @@
 
     feedbackLayer.addEventListener('pointerdown', function (event) {
       if (!feedbackVisible) return;
+      if (feedbackSyncInProgress) return;
       if (!isFeedbackLayoutAllowed()) return;
       if (event.target !== feedbackLayer || event.button !== 0) return;
 
@@ -957,6 +993,8 @@
         setFeedbackVisible(false);
         return;
       }
+
+      if (feedbackSyncInProgress) return;
 
       if (!selectedNote) return;
       const activeElement = document.activeElement;
