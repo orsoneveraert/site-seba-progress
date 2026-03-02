@@ -1444,6 +1444,7 @@ html[data-theme="dark"] .feedback-note {
 }
 
 .feedback-note-handle {
+  position: relative;
   width: 100%;
   cursor: grab;
   background: color-mix(in srgb, var(--ink) 8%, transparent);
@@ -1451,6 +1452,35 @@ html[data-theme="dark"] .feedback-note {
 
 .feedback-note-handle:active {
   cursor: grabbing;
+}
+
+.feedback-note-close {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  z-index: 3;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0.82;
+}
+
+.feedback-note-close:hover,
+.feedback-note-close:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, var(--ink) 16%, transparent);
+}
+
+.feedback-note-close:focus-visible {
+  outline: none;
 }
 
 .feedback-note-editor {

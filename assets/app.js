@@ -710,12 +710,20 @@
       handle.className = 'feedback-note-handle';
       handle.setAttribute('aria-hidden', 'true');
 
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'feedback-note-close';
+      closeBtn.setAttribute('aria-label', 'Supprimer le commentaire');
+      closeBtn.setAttribute('title', 'Supprimer le commentaire');
+      closeBtn.textContent = 'X';
+
       const editor = document.createElement('textarea');
       editor.className = 'feedback-note-editor';
       editor.placeholder = 'Commentaire...';
       editor.value = typeof noteData.text === 'string' ? noteData.text : '';
 
       note.appendChild(handle);
+      note.appendChild(closeBtn);
       note.appendChild(editor);
       feedbackLayer.appendChild(note);
 
@@ -768,6 +776,17 @@
       editor.addEventListener('input', function () {
         fitNoteToContent(note);
         persistNotes();
+      });
+
+      closeBtn.addEventListener('pointerdown', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      });
+
+      closeBtn.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        removeNote(note);
       });
 
       handle.addEventListener('pointerdown', startDragging);
