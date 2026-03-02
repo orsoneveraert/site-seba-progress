@@ -193,9 +193,6 @@
   }
 
   if (feedbackToggles.length) {
-    const feedbackLockWidth = 1440;
-    const feedbackLockHeight = 900;
-    const feedbackLockTolerance = 2;
     const feedbackLayer = document.createElement('div');
     feedbackLayer.className = 'feedback-layer';
     feedbackLayer.setAttribute('aria-hidden', 'true');
@@ -213,13 +210,13 @@
     feedbackResizeGuard.className = 'feedback-resize-guard';
     feedbackResizeGuard.setAttribute('aria-hidden', 'true');
     feedbackResizeGuard.innerHTML =
-      '<p class="feedback-resize-guard-text">Feedback mode doesnt allow resizing</p>';
+      '<p class="feedback-resize-guard-text">Feedback mode doesnt allow feedback when resizing</p>';
     document.body.appendChild(feedbackResizeGuard);
 
     let feedbackVisible = false;
     let selectedNote = null;
     let dragState = null;
-    let feedbackViewportLockPending = false;
+    let feedbackBaselineColumns = null;
     let noteCounter = 0;
     const noteMinWidth = 140;
     const noteMinHeight = 60;
@@ -467,38 +464,51 @@
       feedbackClose.tabIndex = feedbackVisible ? 0 : -1;
     };
 
-    const isFeedbackViewportLocked = function () {
-      return (
-        Math.abs(window.innerWidth - feedbackLockWidth) <= feedbackLockTolerance &&
-        Math.abs(window.innerHeight - feedbackLockHeight) <= feedbackLockTolerance
-      );
+    const countGridColumns = function (gridTemplateColumns) {
+      if (!gridTemplateColumns || gridTemplateColumns === 'none') return 1;
+      let depth = 0;
+      let token = '';
+      let count = 0;
+
+      for (let i = 0; i < gridTemplateColumns.length; i += 1) {
+        const char = gridTemplateColumns[i];
+        if (char === '(') depth += 1;
+        if (char === ')') depth = Math.max(depth - 1, 0);
+
+        if (char === ' ' && depth === 0) {
+          if (token) {
+            count += 1;
+            token = '';
+          }
+          continue;
+        }
+        token += char;
+      }
+
+      if (token) count += 1;
+      return Math.max(count, 1);
     };
 
-    const tryResizeFeedbackViewport = function () {
-      if (typeof window.resizeTo !== 'function') return;
-      try {
-        window.resizeTo(feedbackLockWidth, feedbackLockHeight);
-      } catch (error) {
-        // Ignore browser restrictions.
-      }
+    const getLayoutColumnCount = function () {
+      const mainGrids = Array.from(document.querySelectorAll('main .site-grid')).filter(function (grid) {
+        return grid.offsetParent !== null;
+      });
+      const fallbackGrids = Array.from(document.querySelectorAll('.site-grid:not(.header-grid)')).filter(function (grid) {
+        return grid.offsetParent !== null;
+      });
+      const grids = mainGrids.length ? mainGrids : fallbackGrids;
+      if (!grids.length) return 1;
+
+      return grids.reduce(function (maxColumns, grid) {
+        const columns = countGridColumns(window.getComputedStyle(grid).gridTemplateColumns);
+        return Math.max(maxColumns, columns);
+      }, 1);
     };
 
-    const primeFeedbackViewportLock = function () {
-      feedbackViewportLockPending = true;
-      tryResizeFeedbackViewport();
-
-      const finalizeLock = function () {
-        feedbackViewportLockPending = false;
-        updateFeedbackResizeGuard();
-      };
-
-      if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(function () {
-          window.requestAnimationFrame(finalizeLock);
-        });
-      } else {
-        window.setTimeout(finalizeLock, 80);
-      }
+    const isFeedbackLayoutAllowed = function () {
+      if (!feedbackVisible) return true;
+      if (!Number.isFinite(feedbackBaselineColumns) || feedbackBaselineColumns < 1) return true;
+      return getLayoutColumnCount() >= feedbackBaselineColumns;
     };
 
     const updateFeedbackResizeGuard = function () {
@@ -509,17 +519,10 @@
         return;
       }
 
-      if (feedbackViewportLockPending) {
-        feedbackResizeGuard.classList.remove('is-active');
-        feedbackResizeGuard.setAttribute('aria-hidden', 'true');
-        feedbackLayer.classList.remove('is-size-locked');
-        return;
-      }
-
-      const viewportLocked = isFeedbackViewportLocked();
-      feedbackResizeGuard.classList.toggle('is-active', !viewportLocked);
-      feedbackResizeGuard.setAttribute('aria-hidden', viewportLocked ? 'true' : 'false');
-      feedbackLayer.classList.toggle('is-size-locked', !viewportLocked);
+      const layoutAllowed = isFeedbackLayoutAllowed();
+      feedbackResizeGuard.classList.toggle('is-active', !layoutAllowed);
+      feedbackResizeGuard.setAttribute('aria-hidden', layoutAllowed ? 'true' : 'false');
+      feedbackLayer.classList.toggle('is-size-locked', !layoutAllowed);
     };
 
     const selectNote = function (note, focusNote) {
@@ -799,7 +802,7 @@
         persistNotes();
         selectNote(null, false);
         dragState = null;
-        feedbackViewportLockPending = false;
+        feedbackBaselineColumns = null;
         document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
         feedbackToggles.forEach(function (toggle) {
@@ -810,9 +813,7 @@
         pollRemoteNotes(false);
         startRemotePolling();
       }
-      if (feedbackVisible) {
-        primeFeedbackViewportLock();
-      }
+      if (feedbackVisible) feedbackBaselineColumns = getLayoutColumnCount();
       syncFeedbackLayerSize();
       setFeedbackUi();
       updateFeedbackResizeGuard();
@@ -843,7 +844,7 @@
 
     feedbackLayer.addEventListener('pointerdown', function (event) {
       if (!feedbackVisible) return;
-      if (!isFeedbackViewportLocked()) return;
+      if (!isFeedbackLayoutAllowed()) return;
       if (event.target !== feedbackLayer || event.button !== 0) return;
 
       selectNote(null, false);
