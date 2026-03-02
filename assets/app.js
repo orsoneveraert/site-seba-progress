@@ -215,6 +215,8 @@
     const noteMinHeight = 60;
     const noteDefaultWidth = 184;
     const noteDefaultHeight = 72;
+    const noteTones = ['sun', 'peach', 'mint', 'sky', 'lilac'];
+    const defaultNoteTone = noteTones[0];
     let isApplyingRemote = false;
     let isRemoteWriteInFlight = false;
     let remoteSyncQueued = false;
@@ -302,7 +304,7 @@
           collabEndpoint +
             '?page_path=eq.' +
             collabPageFilterValue +
-            '&select=id,x,y,w,h,text,updated_at&order=updated_at.asc',
+            '&select=id,x,y,w,h,text,tone,updated_at&order=updated_at.asc',
           {
             method: 'GET',
             headers: collabHeaders('')
@@ -329,7 +331,8 @@
           y: item.y,
           w: item.w,
           h: item.h,
-          text: item.text
+          text: item.text,
+          tone: item.tone
         };
       });
 
@@ -373,6 +376,10 @@
       return Math.min(Math.max(value, min), max);
     };
 
+    const normalizeTone = function (tone) {
+      return noteTones.includes(tone) ? tone : defaultNoteTone;
+    };
+
     const serializeNotes = function () {
       return Array.from(feedbackLayer.querySelectorAll('.feedback-note')).map(function (note) {
         const editor = note.querySelector('.feedback-note-editor');
@@ -382,7 +389,8 @@
           y: Math.round(parsePx(note.style.top, note.offsetTop)),
           w: Math.round(parsePx(note.style.width, note.offsetWidth)),
           h: Math.round(parsePx(note.style.height, note.offsetHeight)),
-          text: editor ? editor.value : ''
+          text: editor ? editor.value : '',
+          tone: normalizeTone(note.getAttribute('data-tone'))
         };
       });
     };
@@ -487,6 +495,7 @@
       const note = document.createElement('article');
       note.className = 'feedback-note';
       note.setAttribute('data-note-id', id);
+      note.setAttribute('data-tone', normalizeTone(noteData.tone));
       note.tabIndex = 0;
       note.style.left = parsePx(noteData.x, 40) + 'px';
       note.style.top = parsePx(noteData.y, 40) + 'px';
@@ -633,6 +642,7 @@
           existing.style.top = Math.max(parsePx(item.y, 0), 0) + 'px';
         }
 
+        existing.setAttribute('data-tone', normalizeTone(item.tone));
         existing.style.width = Math.max(parsePx(item.w, existing.offsetWidth), noteMinWidth) + 'px';
         existing.style.height = Math.max(parsePx(item.h, existing.offsetHeight), noteMinHeight) + 'px';
 
@@ -765,10 +775,21 @@
       }
 
       if (!selectedNote) return;
-      if (event.key !== 'Backspace' && event.key !== 'Delete') return;
-
       const activeElement = document.activeElement;
       if (activeElement && activeElement.classList.contains('feedback-note-editor')) return;
+
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        const currentTone = normalizeTone(selectedNote.getAttribute('data-tone'));
+        const currentIndex = noteTones.indexOf(currentTone);
+        const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+        const nextIndex = (currentIndex + step + noteTones.length) % noteTones.length;
+        selectedNote.setAttribute('data-tone', noteTones[nextIndex]);
+        event.preventDefault();
+        persistNotes();
+        return;
+      }
+
+      if (event.key !== 'Backspace' && event.key !== 'Delete') return;
 
       event.preventDefault();
       removeNote(selectedNote);
