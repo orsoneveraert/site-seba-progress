@@ -185,6 +185,15 @@
     feedbackLayer.className = 'feedback-layer';
     feedbackLayer.setAttribute('aria-hidden', 'true');
     document.body.appendChild(feedbackLayer);
+    const feedbackClose = document.createElement('button');
+    feedbackClose.className = 'feedback-close';
+    feedbackClose.type = 'button';
+    feedbackClose.textContent = 'X';
+    feedbackClose.setAttribute('aria-label', 'Quitter le mode commentaires');
+    feedbackClose.setAttribute('title', 'Quitter le mode commentaires');
+    feedbackClose.setAttribute('aria-hidden', 'true');
+    feedbackClose.tabIndex = -1;
+    document.body.appendChild(feedbackClose);
 
     let feedbackVisible = false;
     let selectedNote = null;
@@ -397,6 +406,9 @@
 
       feedbackLayer.classList.toggle('is-active', feedbackVisible);
       feedbackLayer.setAttribute('aria-hidden', feedbackVisible ? 'false' : 'true');
+      feedbackClose.classList.toggle('is-active', feedbackVisible);
+      feedbackClose.setAttribute('aria-hidden', feedbackVisible ? 'false' : 'true');
+      feedbackClose.tabIndex = feedbackVisible ? 0 : -1;
     };
 
     const selectNote = function (note, focusNote) {
@@ -666,10 +678,14 @@
       pollRemoteNotes(true);
     }
 
-    const toggleFeedback = function () {
-      feedbackVisible = !feedbackVisible;
+    const setFeedbackVisible = function (nextVisible) {
+      if (feedbackVisible === nextVisible) return;
+
+      feedbackVisible = nextVisible;
       if (!feedbackVisible) {
         selectNote(null, false);
+        dragState = null;
+        document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
       } else if (feedbackCollabEnabled) {
         if (!hasPulledRemote) {
@@ -681,10 +697,27 @@
       setFeedbackUi();
     };
 
+    const toggleFeedback = function () {
+      setFeedbackVisible(!feedbackVisible);
+    };
+
     feedbackToggles.forEach(function (toggle) {
+      toggle.addEventListener('pointerdown', function (event) {
+        event.stopPropagation();
+      });
       toggle.addEventListener('click', function () {
         toggleFeedback();
       });
+    });
+
+    feedbackClose.addEventListener('pointerdown', function (event) {
+      event.stopPropagation();
+    });
+
+    feedbackClose.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      setFeedbackVisible(false);
     });
 
     feedbackLayer.addEventListener('pointerdown', function (event) {
@@ -708,7 +741,15 @@
     });
 
     document.addEventListener('keydown', function (event) {
-      if (!feedbackVisible || !selectedNote) return;
+      if (!feedbackVisible) return;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setFeedbackVisible(false);
+        return;
+      }
+
+      if (!selectedNote) return;
       if (event.key !== 'Backspace' && event.key !== 'Delete') return;
 
       const activeElement = document.activeElement;
