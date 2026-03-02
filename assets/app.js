@@ -219,7 +219,6 @@
     let feedbackVisible = false;
     let selectedNote = null;
     let dragState = null;
-    let feedbackViewportLock = null;
     let feedbackViewportLockPending = false;
     let noteCounter = 0;
     const noteMinWidth = 140;
@@ -469,18 +468,10 @@
     };
 
     const isFeedbackViewportLocked = function () {
-      if (!feedbackViewportLock) return true;
       return (
-        Math.abs(window.innerWidth - feedbackViewportLock.width) <= feedbackLockTolerance &&
-        Math.abs(window.innerHeight - feedbackViewportLock.height) <= feedbackLockTolerance
+        Math.abs(window.innerWidth - feedbackLockWidth) <= feedbackLockTolerance &&
+        Math.abs(window.innerHeight - feedbackLockHeight) <= feedbackLockTolerance
       );
-    };
-
-    const setFeedbackViewportLock = function () {
-      feedbackViewportLock = {
-        width: window.innerWidth,
-        height: window.innerHeight
-      };
     };
 
     const tryResizeFeedbackViewport = function () {
@@ -498,7 +489,6 @@
 
       const finalizeLock = function () {
         feedbackViewportLockPending = false;
-        setFeedbackViewportLock();
         updateFeedbackResizeGuard();
       };
 
@@ -519,7 +509,7 @@
         return;
       }
 
-      if (feedbackViewportLockPending || !feedbackViewportLock) {
+      if (feedbackViewportLockPending) {
         feedbackResizeGuard.classList.remove('is-active');
         feedbackResizeGuard.setAttribute('aria-hidden', 'true');
         feedbackLayer.classList.remove('is-size-locked');
@@ -809,7 +799,6 @@
         persistNotes();
         selectNote(null, false);
         dragState = null;
-        feedbackViewportLock = null;
         feedbackViewportLockPending = false;
         document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
