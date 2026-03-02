@@ -211,6 +211,10 @@
     let selectedNote = null;
     let dragState = null;
     let noteCounter = 0;
+    const noteMinWidth = 140;
+    const noteMinHeight = 60;
+    const noteDefaultWidth = 184;
+    const noteDefaultHeight = 72;
     let isApplyingRemote = false;
     let isRemoteWriteInFlight = false;
     let remoteSyncQueued = false;
@@ -486,8 +490,8 @@
       note.tabIndex = 0;
       note.style.left = parsePx(noteData.x, 40) + 'px';
       note.style.top = parsePx(noteData.y, 40) + 'px';
-      note.style.width = Math.max(parsePx(noteData.w, 184), 140) + 'px';
-      note.style.height = Math.max(parsePx(noteData.h, 184), 140) + 'px';
+      note.style.width = Math.max(parsePx(noteData.w, noteDefaultWidth), noteMinWidth) + 'px';
+      note.style.height = Math.max(parsePx(noteData.h, noteDefaultHeight), noteMinHeight) + 'px';
 
       const handle = document.createElement('div');
       handle.className = 'feedback-note-handle';
@@ -629,8 +633,8 @@
           existing.style.top = Math.max(parsePx(item.y, 0), 0) + 'px';
         }
 
-        existing.style.width = Math.max(parsePx(item.w, existing.offsetWidth), 140) + 'px';
-        existing.style.height = Math.max(parsePx(item.h, existing.offsetHeight), 140) + 'px';
+        existing.style.width = Math.max(parsePx(item.w, existing.offsetWidth), noteMinWidth) + 'px';
+        existing.style.height = Math.max(parsePx(item.h, existing.offsetHeight), noteMinHeight) + 'px';
 
         if (editor && !editorFocused) {
           editor.value = typeof item.text === 'string' ? item.text : '';
@@ -738,10 +742,10 @@
       selectNote(null, false);
       const note = createNote(
         {
-          x: event.pageX - 92,
-          y: event.pageY - 92,
-          w: 184,
-          h: 184,
+          x: event.pageX - noteDefaultWidth / 2,
+          y: event.pageY - noteDefaultHeight / 2,
+          w: noteDefaultWidth,
+          h: noteDefaultHeight,
           text: ''
         },
         true

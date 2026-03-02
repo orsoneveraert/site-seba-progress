@@ -1366,7 +1366,7 @@ textarea:focus {
   display: grid;
   grid-template-rows: 18px 1fr;
   min-width: 140px;
-  min-height: 140px;
+  min-height: 60px;
   border: var(--line-w) solid color-mix(in srgb, var(--ink) 28%, #464028);
   background: color-mix(in srgb, #fbf0ae 94%, white 6%);
   color: #111;
