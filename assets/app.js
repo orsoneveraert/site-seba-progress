@@ -731,6 +731,10 @@
         dragState = null;
         document.body.classList.remove('feedback-dragging');
         stopRemotePolling();
+        feedbackToggles.forEach(function (toggle) {
+          toggle.blur();
+        });
+        feedbackClose.blur();
       } else if (feedbackCollabEnabled) {
         pollRemoteNotes(false);
         startRemotePolling();

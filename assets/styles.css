@@ -1276,7 +1276,6 @@ textarea:focus {
 
 .theme-toggle:hover,
 .theme-toggle:focus-visible,
-.feedback-toggle:hover,
 .feedback-toggle:focus-visible,
 .feedback-toggle.is-active {
   background: var(--ink);
