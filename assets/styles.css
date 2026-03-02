@@ -1456,27 +1456,47 @@ html[data-theme="dark"] .feedback-note {
 
 .feedback-note-close {
   position: absolute;
-  top: 1px;
-  left: 1px;
-  z-index: 3;
-  width: 16px;
-  height: 16px;
+  top: 3px;
+  left: 4px;
+  z-index: 4;
+  width: 12px;
+  height: 12px;
   padding: 0;
   border: 0;
   background: transparent;
-  color: inherit;
-  font-size: 10px;
+  color: #111;
+  font-size: 0;
   line-height: 1;
   display: grid;
   place-items: center;
   cursor: pointer;
-  opacity: 0.82;
+  opacity: 0.78;
+}
+
+html[data-theme="dark"] .feedback-note-close {
+  color: #f5f5f5;
+}
+
+.feedback-note-close::before,
+.feedback-note-close::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 1px;
+  background: currentColor;
+}
+
+.feedback-note-close::before {
+  transform: rotate(45deg);
+}
+
+.feedback-note-close::after {
+  transform: rotate(-45deg);
 }
 
 .feedback-note-close:hover,
 .feedback-note-close:focus-visible {
   opacity: 1;
-  background: color-mix(in srgb, var(--ink) 16%, transparent);
 }
 
 .feedback-note-close:focus-visible {
