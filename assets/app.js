@@ -247,6 +247,7 @@
     let remoteSyncQueued = false;
     let remotePollTimer = null;
     let hasPulledRemote = false;
+    const collabStateById = new Map();
     const collabPollMs = Math.max(
       900,
       Number(
@@ -369,13 +370,15 @@
       });
 
       try {
-        await window.fetch(collabEndpoint, {
+        const response = await window.fetch(collabEndpoint, {
           method: 'POST',
           headers: collabHeaders('resolution=merge-duplicates', true),
           body: JSON.stringify(payload)
         });
+        return response.ok;
       } catch (error) {
         // Ignore network errors and keep local behavior.
+        return false;
       }
     };
 
@@ -383,7 +386,7 @@
       if (!feedbackCollabEnabled || !collabEndpoint || !noteId) return;
 
       try {
-        await window.fetch(
+        const response = await window.fetch(
           collabEndpoint +
             '?id=eq.' +
             encodeURIComponent(noteId) +
@@ -394,8 +397,10 @@
             headers: collabHeaders('', false)
           }
         );
+        return response.ok;
       } catch (error) {
         // Ignore network errors and keep local behavior.
+        return false;
       }
     };
 
@@ -426,6 +431,32 @@
       return noteTones.includes(tone) ? tone : defaultNoteTone;
     };
 
+    const normalizeCollabNote = function (item) {
+      if (!item || !item.id) return null;
+      return {
+        id: String(item.id),
+        x: Math.round(parsePx(item.x, 0)),
+        y: Math.round(parsePx(item.y, 0)),
+        w: Math.round(parsePx(item.w, noteDefaultWidth)),
+        h: Math.round(parsePx(item.h, noteDefaultHeight)),
+        text: typeof item.text === 'string' ? item.text : '',
+        tone: normalizeTone(item.tone)
+      };
+    };
+
+    const areCollabNotesEqual = function (a, b) {
+      if (!a || !b) return false;
+      return (
+        a.id === b.id &&
+        a.x === b.x &&
+        a.y === b.y &&
+        a.w === b.w &&
+        a.h === b.h &&
+        a.text === b.text &&
+        a.tone === b.tone
+      );
+    };
+
     const serializeNotes = function () {
       return Array.from(feedbackLayer.querySelectorAll('.feedback-note')).map(function (note) {
         const editor = note.querySelector('.feedback-note-editor');
@@ -443,7 +474,7 @@
     };
 
     const flushRemoteSync = async function () {
-      if (!feedbackCollabEnabled || isApplyingRemote) return;
+      if (!feedbackCollabEnabled || isApplyingRemote || !hasPulledRemote) return;
       if (isRemoteWriteInFlight) {
         remoteSyncQueued = true;
         return;
@@ -451,7 +482,22 @@
 
       isRemoteWriteInFlight = true;
       const snapshot = serializeNotes();
-      await upsertRemoteNotes(snapshot);
+      const changedNotes = snapshot
+        .map(normalizeCollabNote)
+        .filter(function (item) {
+          if (!item) return false;
+          const remoteItem = collabStateById.get(item.id);
+          return !remoteItem || !areCollabNotesEqual(remoteItem, item);
+        });
+
+      if (changedNotes.length) {
+        const upserted = await upsertRemoteNotes(changedNotes);
+        if (upserted) {
+          changedNotes.forEach(function (item) {
+            collabStateById.set(item.id, item);
+          });
+        }
+      }
       isRemoteWriteInFlight = false;
 
       if (remoteSyncQueued) {
@@ -569,7 +615,11 @@
       note.remove();
       persistNotes();
       if (feedbackCollabEnabled) {
-        deleteRemoteNote(noteId);
+        deleteRemoteNote(noteId).then(function (deleted) {
+          if (deleted) {
+            collabStateById.delete(noteId);
+          }
+        });
       }
     };
 
@@ -596,9 +646,16 @@
       clampNoteToViewport(note);
     };
 
+    const generateNoteId = function () {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      return 'n-' + Date.now() + '-' + Math.round(Math.random() * 1000000) + '-' + (noteCounter + 1);
+    };
+
     const createNote = function (noteData, shouldFocusEditor) {
       noteCounter += 1;
-      const id = noteData.id || 'n-' + Date.now() + '-' + noteCounter;
+      const id = noteData.id || generateNoteId();
       const note = document.createElement('article');
       note.className = 'feedback-note';
       note.setAttribute('data-note-id', id);
@@ -720,11 +777,14 @@
     const applyRemoteNotes = function (remoteNotes) {
       if (!Array.isArray(remoteNotes)) return;
       isApplyingRemote = true;
+      collabStateById.clear();
 
       const remoteById = new Map();
       remoteNotes.forEach(function (item) {
-        if (!item || !item.id) return;
-        remoteById.set(String(item.id), item);
+        const normalized = normalizeCollabNote(item);
+        if (!normalized) return;
+        remoteById.set(normalized.id, normalized);
+        collabStateById.set(normalized.id, normalized);
       });
 
       Array.from(feedbackLayer.querySelectorAll('.feedback-note')).forEach(function (note) {
@@ -774,7 +834,7 @@
       if (seedWhenEmpty && !remoteNotes.length) {
         const localSnapshot = serializeNotes();
         if (localSnapshot.length) {
-          await upsertRemoteNotes(localSnapshot);
+          await upsertRemoteNotes(localSnapshot.map(normalizeCollabNote).filter(Boolean));
           const seededRemote = await fetchRemoteNotes();
           if (seededRemote) applyRemoteNotes(seededRemote);
           hasPulledRemote = true;
