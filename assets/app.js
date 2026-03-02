@@ -193,6 +193,9 @@
   }
 
   if (feedbackToggles.length) {
+    const feedbackLockWidth = 1440;
+    const feedbackLockHeight = 900;
+    const feedbackLockTolerance = 2;
     const feedbackLayer = document.createElement('div');
     feedbackLayer.className = 'feedback-layer';
     feedbackLayer.setAttribute('aria-hidden', 'true');
@@ -206,6 +209,12 @@
     feedbackClose.setAttribute('aria-hidden', 'true');
     feedbackClose.tabIndex = -1;
     document.body.appendChild(feedbackClose);
+    const feedbackResizeGuard = document.createElement('div');
+    feedbackResizeGuard.className = 'feedback-resize-guard';
+    feedbackResizeGuard.setAttribute('aria-hidden', 'true');
+    feedbackResizeGuard.innerHTML =
+      '<p class="feedback-resize-guard-text">Feedback mode doesnt allow resizing</p>';
+    document.body.appendChild(feedbackResizeGuard);
 
     let feedbackVisible = false;
     let selectedNote = null;
@@ -455,6 +464,27 @@
       feedbackClose.classList.toggle('is-active', feedbackVisible);
       feedbackClose.setAttribute('aria-hidden', feedbackVisible ? 'false' : 'true');
       feedbackClose.tabIndex = feedbackVisible ? 0 : -1;
+    };
+
+    const isFeedbackViewportLocked = function () {
+      return (
+        Math.abs(window.innerWidth - feedbackLockWidth) <= feedbackLockTolerance &&
+        Math.abs(window.innerHeight - feedbackLockHeight) <= feedbackLockTolerance
+      );
+    };
+
+    const updateFeedbackResizeGuard = function () {
+      if (!feedbackVisible) {
+        feedbackResizeGuard.classList.remove('is-active');
+        feedbackResizeGuard.setAttribute('aria-hidden', 'true');
+        feedbackLayer.classList.remove('is-size-locked');
+        return;
+      }
+
+      const viewportLocked = isFeedbackViewportLocked();
+      feedbackResizeGuard.classList.toggle('is-active', !viewportLocked);
+      feedbackResizeGuard.setAttribute('aria-hidden', viewportLocked ? 'true' : 'false');
+      feedbackLayer.classList.toggle('is-size-locked', !viewportLocked);
     };
 
     const selectNote = function (note, focusNote) {
@@ -746,6 +776,7 @@
       }
       syncFeedbackLayerSize();
       setFeedbackUi();
+      updateFeedbackResizeGuard();
     };
 
     const toggleFeedback = function () {
@@ -773,6 +804,7 @@
 
     feedbackLayer.addEventListener('pointerdown', function (event) {
       if (!feedbackVisible) return;
+      if (!isFeedbackViewportLocked()) return;
       if (event.target !== feedbackLayer || event.button !== 0) return;
 
       selectNote(null, false);
@@ -826,6 +858,7 @@
       Array.from(feedbackLayer.querySelectorAll('.feedback-note')).forEach(function (note) {
         clampNoteToViewport(note);
       });
+      updateFeedbackResizeGuard();
     });
 
     window.addEventListener('scroll', syncFeedbackLayerSize, { passive: true });

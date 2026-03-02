@@ -1360,6 +1360,42 @@ textarea:focus {
   pointer-events: auto;
 }
 
+.feedback-layer.is-size-locked {
+  pointer-events: none;
+}
+
+.feedback-resize-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(140, 140, 140, 0.52);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.24s ease, visibility 0.24s ease;
+}
+
+.feedback-resize-guard.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.feedback-resize-guard-text {
+  margin: 0;
+  padding: 12px 20px;
+  font-size: clamp(1rem, 1.4vw, 1.4rem);
+  line-height: 1.2;
+  color: #151515;
+  border: var(--line-w) solid rgba(0, 0, 0, 0.25);
+  background: rgba(246, 246, 246, 0.86);
+  letter-spacing: 0.01em;
+}
+
 .feedback-note {
   --note-bg: #fbf0ae;
   --note-border: color-mix(in srgb, var(--note-bg) 52%, #4c4736 48%);
