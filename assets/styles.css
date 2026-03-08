@@ -66,6 +66,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Thermal";
+  src: url("fonts/thermal-vf-thin-text.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
 }
